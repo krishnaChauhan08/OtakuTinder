@@ -73,7 +73,7 @@ app.patch("/user/:id", async (req, res) => {
     await User.findByIdAndUpdate(userId, data);
     res.send("User updated successfully!");
   } catch (error) {
-    res.status(400).send("Something went wrong");
+    res.status(400).send("Update Failed!" + error.message);
   }
 });
 
