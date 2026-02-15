@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt");
 const validator = require("validator");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
+const { userAuth } = require("./middlewares/auth");
 
 app.use(express.json());
 app.use(cookieParser());
@@ -56,7 +57,9 @@ app.post("/login", async (req, res) => {
 
     if (isPasswordValid) {
       // Create a JWT Token
-      const token = await jwt.sign({ _id: user._id }, "Otaku@Tinder$789");
+      const token = await jwt.sign({ _id: user._id }, "Otaku@Tinder$789", {
+        expiresIn: "1d",
+      });
 
       // Add the token to cookie and send the response back to the user
       res.cookie("token", token);
@@ -71,109 +74,27 @@ app.post("/login", async (req, res) => {
 });
 
 // Get the Profile
-app.get("/profile", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
   try {
-    const cookies = req.cookies;
-
-    const { token } = cookies;
-    if (!token) {
-      throw new Error("Invalid Token");
-    }
-
-    // validate my token
-    const decodedMessage = await jwt.verify(token, "Otaku@Tinder$789");
-    const { _id } = decodedMessage;
-
-    const user = await User.findById(_id);
+    const user = req.user;
     if (!user) {
       throw new Error("User does not exist");
     }
-
     res.send(user);
   } catch (error) {
     res.status(400).send("ERROR : " + error.message);
   }
 });
 
-// GET user by email
-app.get("/user", async (req, res) => {
-  const userEmail = req.body.emailId;
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
   try {
-    const user = await User.findOne({ emailId: userEmail });
-    if (!user) {
-      res.status(404).send("User not found");
-    } else {
-      res.send(user);
-    }
-    // const user = await User.find({ emailId: userEmail });
-    // if (user.length === 0) {
-    //   res.status(404).send("User not found");
-    // }
-    // res.send(users);
+    const user = req.user;
+    // sending a connection request
+    console.log("Sending request sent!");
+
+    res.send(user.firstName + " sent the connection request");
   } catch (error) {
-    res.status(400).send("Sometthing went wrong!");
-  }
-});
-
-// Get all the user from the database
-app.get("/feed", async (req, res) => {
-  try {
-    const user = await User.find({});
-    res.send(user);
-  } catch (error) {
-    res.status(400).send("Sometthing went wrong!");
-  }
-});
-
-// Delete the user from the database
-app.delete("/user/:id", async (req, res) => {
-  const userId = req.params.id;
-  console.log("Deleting user:", userId);
-
-  if (!userId) {
-    return res.status(400).send("User ID required");
-  }
-
-  try {
-    await User.findByIdAndDelete(userId);
-    res.send("User deleted successfully");
-  } catch (error) {
-    console.error(error);
-    res.status(400).send("Something went wrong");
-  }
-});
-
-// update the existing USER
-app.patch("/user/:id", async (req, res) => {
-  const data = req.body;
-  const userId = req.params?.id;
-
-  try {
-    const allowedUpdates = [
-      "userId",
-      "photoUrl",
-      "about",
-      "gender",
-      "age",
-      "skills",
-    ];
-
-    const isUpdateAllowed = Object.keys(data).every((k) => {
-      return allowedUpdates.includes(k);
-    });
-
-    if (!isUpdateAllowed) {
-      throw new Error("Update not allowed");
-    }
-
-    if (data?.skills.length > 10) {
-      throw new Error("Skills cannot be more than 10");
-    }
-
-    await User.findByIdAndUpdate(userId, data);
-    res.send("User updated successfully!");
-  } catch (error) {
-    res.status(400).send("Update Failed!" + error.message);
+    res.status(400).send("ERROR : " + error.message);
   }
 });
 
